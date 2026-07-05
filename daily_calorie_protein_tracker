@@ -70,6 +70,28 @@
             transform: translate(var(--tx), var(--ty)) scale(1) !important;
             opacity: 1 !important;
         }
+
+        .calorie-left-card {
+            background:
+                radial-gradient(circle at 14% 20%, rgba(34, 197, 94, 0.28), transparent 28%),
+                radial-gradient(circle at 85% 0%, rgba(6, 182, 212, 0.24), transparent 30%),
+                linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.94));
+            position: relative;
+            overflow: hidden;
+        }
+
+        .calorie-left-card::after {
+            content: "";
+            position: absolute;
+            inset: auto -18% -45% -18%;
+            height: 76%;
+            background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.22), rgba(6, 182, 212, 0.16), transparent);
+            transform: rotate(-6deg);
+        }
+
+        .history-heat-cell {
+            background: color-mix(in srgb, rgb(34 197 94) var(--intensity), rgb(30 41 59));
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-brand-500 selection:text-slate-950 font-sans pb-28 lg:pb-12">
@@ -165,9 +187,20 @@
 
                     <!-- Actionable Daily Insights -->
                     <div class="mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3 relative z-10">
-                        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
-                            <span class="block text-[10px] uppercase tracking-wider font-bold text-slate-500">Calories Left</span>
-                            <span class="block text-lg font-bold text-brand-400" id="remainingCalories">2,000 kcal</span>
+                        <div class="calorie-left-card col-span-2 sm:col-span-1 border border-brand-500/25 rounded-2xl p-3 shadow-lg shadow-brand-500/10">
+                            <div class="relative z-10 flex items-start justify-between gap-2">
+                                <div>
+                                    <span class="block text-[10px] uppercase tracking-[0.22em] font-black text-brand-200/80">Fuel Tank</span>
+                                    <span class="block text-2xl font-black text-white leading-tight" id="remainingCalories">2,000 kcal</span>
+                                    <span class="block text-[10px] text-slate-300 font-semibold" id="remainingCaloriesHint">Ready for today</span>
+                                </div>
+                                <div class="w-12 h-12 rounded-2xl bg-slate-950/60 border border-white/10 flex items-center justify-center shadow-inner">
+                                    <svg class="w-7 h-7 text-brand-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                </div>
+                            </div>
+                            <div class="relative z-10 mt-3 h-2 rounded-full bg-slate-950/70 overflow-hidden border border-white/5">
+                                <div id="remainingCaloriesBar" class="h-full rounded-full bg-gradient-to-r from-brand-400 via-emerald-300 to-accent-400 transition-all duration-500" style="width: 100%"></div>
+                            </div>
                         </div>
                         <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
                             <span class="block text-[10px] uppercase tracking-wider font-bold text-slate-500">Protein Left</span>
@@ -238,9 +271,16 @@
                 <div id="panel-history" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl hidden lg:block">
                     <h3 class="text-sm sm:text-base font-semibold text-slate-100 mb-2.5 flex items-center gap-2">
                         <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Day Log History (Last 7 Days)
+                        Day Log History (Last 5 Days)
                     </h3>
-                    <div class="space-y-2 mt-2 max-h-48 overflow-y-auto pr-1" id="historySummaryList">
+                    <div class="mt-3 rounded-2xl bg-slate-950/50 border border-slate-800/70 p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[10px] uppercase tracking-[0.2em] font-black text-slate-500">5-day heat map</span>
+                            <span class="text-[10px] text-slate-500">Calories + protein goal blend</span>
+                        </div>
+                        <div class="grid grid-cols-5 gap-2" id="historyHeatMap"></div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-5 lg:grid-cols-1 xl:grid-cols-5 gap-2 mt-3" id="historySummaryList">
                         <!-- Dynamically filled with past dates -->
                     </div>
                 </div>
@@ -304,6 +344,17 @@
                         <button onclick="openConfirmModal('clearAll')" class="text-xs font-semibold text-red-400 hover:text-red-300 transition-all border border-red-500/30 hover:border-red-500/50 bg-red-950/20 px-3 py-2 rounded-lg min-h-[36px]">
                             Clear This Day
                         </button>
+                    </div>
+
+                    <div class="mb-4 rounded-2xl border border-accent-500/20 bg-gradient-to-br from-slate-950 via-slate-950/90 to-accent-950/20 p-3 shadow-lg shadow-accent-500/5">
+                        <div class="flex items-center justify-between gap-2 mb-3">
+                            <div>
+                                <p class="text-[10px] uppercase tracking-[0.22em] font-black text-accent-300/80">Protein by meal snap</p>
+                                <p class="text-[11px] text-slate-400">Breakfast / Lunch / Dinner / Snack split</p>
+                            </div>
+                            <span class="text-xs font-black text-accent-200" id="mealProteinSnapTotal">0g total</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2" id="mealProteinSnapshot"></div>
                     </div>
 
                     <!-- Unified Logs by Meal Type -->
@@ -950,7 +1001,10 @@
             const weeklyAverages = getWeeklyAverages(appState.selectedDate);
             const goalStreak = getProteinGoalStreak(appState.selectedDate);
 
-            document.getElementById('remainingCalories').textContent = `${Math.max(Math.round(remainingCalories), 0).toLocaleString()} kcal`;
+            const remainingCaloriesSafe = Math.max(Math.round(remainingCalories), 0);
+            document.getElementById('remainingCalories').textContent = `${remainingCaloriesSafe.toLocaleString()} kcal`;
+            document.getElementById('remainingCaloriesHint').textContent = remainingCalories < 0 ? `${Math.abs(Math.round(remainingCalories)).toLocaleString()} kcal over target` : `${Math.round((remainingCaloriesSafe / appState.goals.calories) * 100)}% of target still open`;
+            document.getElementById('remainingCaloriesBar').style.width = `${Math.min(Math.max((remainingCaloriesSafe / appState.goals.calories) * 100, 0), 100)}%`;
             document.getElementById('remainingProtein').textContent = `${Math.max(remainingProtein, 0).toFixed(1)}g`;
             document.getElementById('proteinPerMeal').textContent = mealCount ? `${(loggedProt / mealCount).toFixed(1)}g` : '0g';
             document.getElementById('weeklyAverage').textContent = `${weeklyAverages.calories.toLocaleString()} kcal · ${weeklyAverages.protein.toFixed(1)}g`;
@@ -1178,6 +1232,13 @@
             const dailyEntries = appState.logs[dateStr] || [];
 
             const categories = ["Breakfast", "Lunch", "Dinner", "Snacks"];
+            const mealMeta = {
+                Breakfast: { icon: "🍳", glow: "from-amber-400/30 to-orange-500/10" },
+                Lunch: { icon: "🥗", glow: "from-emerald-400/30 to-lime-500/10" },
+                Dinner: { icon: "🥘", glow: "from-fuchsia-400/30 to-purple-500/10" },
+                Snacks: { icon: "🍎", glow: "from-cyan-400/30 to-blue-500/10" }
+            };
+            const mealProtein = { Breakfast: 0, Lunch: 0, Dinner: 0, Snacks: 0 };
             const listPrefixes = {
                 Breakfast: "list-Breakfast",
                 Lunch: "list-Lunch",
@@ -1203,6 +1264,7 @@
                     catEntries.forEach(entry => {
                         catCal += entry.calories;
                         catProt += entry.protein;
+                        mealProtein[cat] += entry.protein || 0;
 
                         const li = document.createElement('li');
                         li.className = "flex items-center justify-between gap-2 text-xs py-2 px-2.5 bg-slate-900/40 rounded-lg hover:bg-slate-900 border border-slate-800/40 group transition-all";
@@ -1227,6 +1289,28 @@
 
                 document.getElementById(`total-${cat}`).textContent = `${Math.round(catCal)} kcal | ${catProt.toFixed(1)}g P`;
             });
+
+            const totalProtein = categories.reduce((sum, cat) => sum + mealProtein[cat], 0);
+            const snapshot = document.getElementById('mealProteinSnapshot');
+            snapshot.innerHTML = categories.map(cat => {
+                const pct = totalProtein ? Math.round((mealProtein[cat] / totalProtein) * 100) : 0;
+                const meta = mealMeta[cat];
+                return `
+                    <div class="rounded-2xl border border-slate-800 bg-gradient-to-br ${meta.glow} p-3 relative overflow-hidden">
+                        <div class="absolute -right-3 -top-3 text-4xl opacity-10">${meta.icon}</div>
+                        <div class="relative z-10 flex items-center justify-between">
+                            <span class="text-lg">${meta.icon}</span>
+                            <span class="text-[10px] font-black text-slate-400">${pct}%</span>
+                        </div>
+                        <div class="relative z-10 mt-2 text-lg font-black text-slate-100">${mealProtein[cat].toFixed(1)}g</div>
+                        <div class="relative z-10 text-[10px] uppercase tracking-wider font-bold text-slate-400">${cat}</div>
+                        <div class="relative z-10 mt-2 h-1.5 bg-slate-950/70 rounded-full overflow-hidden">
+                            <div class="h-full rounded-full bg-accent-300" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            document.getElementById('mealProteinSnapTotal').textContent = `${totalProtein.toFixed(1)}g total`;
         }
 
         function removeLogItem(itemId) {
@@ -1377,7 +1461,7 @@
             const datesList = [];
             const today = new Date();
 
-            for (let i = 0; i < 7; i++) {
+            for (let i = 0; i < 5; i++) {
                 const date = new Date();
                 date.setDate(today.getDate() - i);
                 
@@ -1387,6 +1471,24 @@
                 
                 datesList.push(`${yyyy}-${mm}-${dd}`);
             }
+
+            const heatMap = document.getElementById('historyHeatMap');
+            heatMap.innerHTML = '';
+
+            datesList.slice().reverse().forEach(dateStr => {
+                const totals = getDailyTotals(dateStr);
+                const calScore = Math.min(totals.calories / appState.goals.calories, 1);
+                const proteinScore = Math.min(totals.protein / appState.goals.protein, 1);
+                const intensity = Math.round(((calScore + proteinScore) / 2) * 100);
+                const dateObj = parseDateString(dateStr);
+                const dayName = dateObj.toLocaleDateString(undefined, { weekday: 'short' });
+                const cell = document.createElement('button');
+                cell.className = `history-heat-cell rounded-xl border border-slate-700/60 p-2 text-left hover:scale-[1.03] transition-all ${dateStr === appState.selectedDate ? 'ring-2 ring-brand-400' : ''}`;
+                cell.style.setProperty('--intensity', `${intensity}%`);
+                cell.onclick = () => { appState.selectedDate = dateStr; renderAll(); };
+                cell.innerHTML = `<span class="block text-[9px] font-black uppercase text-white/70">${dayName}</span><span class="block text-sm font-black text-white">${Math.round(totals.protein)}g</span><span class="block text-[9px] text-white/70">${Math.round(totals.calories)} kcal</span>`;
+                heatMap.appendChild(cell);
+            });
 
             datesList.forEach(dateStr => {
                 const dailyEntries = appState.logs[dateStr] || [];
@@ -1408,7 +1510,7 @@
                 const dayNum = dateObj.getDate();
 
                 const item = document.createElement('div');
-                item.className = `flex items-center justify-between p-2 rounded-xl transition-all border ${isCurrent ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:bg-slate-900 cursor-pointer'} min-h-[44px]`;
+                item.className = `flex items-center justify-between p-2 rounded-xl transition-all border min-w-0 ${isCurrent ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:bg-slate-900 cursor-pointer'} min-h-[44px]`;
                 
                 if (!isCurrent) {
                     item.onclick = () => {
