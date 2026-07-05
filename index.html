@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aura Tracker - Daily Calorie & Protein Planner</title>
+    <title>Protein Tracker - Daily Calorie & Protein Planner</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -83,7 +83,7 @@
                     </svg>
                 </div>
                 <div class="min-w-0">
-                    <h1 class="text-base sm:text-xl font-bold bg-gradient-to-r from-brand-100 to-slate-100 bg-clip-text text-transparent truncate">Aura Tracker</h1>
+                    <h1 class="text-base sm:text-xl font-bold bg-gradient-to-r from-brand-100 to-slate-100 bg-clip-text text-transparent truncate">Protein Tracker</h1>
                     <p class="text-[10px] sm:text-xs text-slate-400 font-medium truncate">Calorie & Protein Intelligence</p>
                 </div>
             </div>
@@ -159,6 +159,35 @@
                                 <span class="text-[9px] text-slate-500 font-normal sm:hidden">(Tap to view)</span>
                             </span>
                             <span class="text-[10px] sm:text-xs text-slate-400" id="protPercentage">0% Completed</span>
+                        </div>
+                    </div>
+
+
+                    <!-- Actionable Daily Insights -->
+                    <div class="mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3 relative z-10">
+                        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                            <span class="block text-[10px] uppercase tracking-wider font-bold text-slate-500">Calories Left</span>
+                            <span class="block text-lg font-bold text-brand-400" id="remainingCalories">2,000 kcal</span>
+                        </div>
+                        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                            <span class="block text-[10px] uppercase tracking-wider font-bold text-slate-500">Protein Left</span>
+                            <span class="block text-lg font-bold text-accent-400" id="remainingProtein">150g</span>
+                        </div>
+                        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                            <span class="block text-[10px] uppercase tracking-wider font-bold text-slate-500">Protein / Meal</span>
+                            <span class="block text-lg font-bold text-slate-100" id="proteinPerMeal">0g</span>
+                        </div>
+                        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                            <span class="block text-[10px] uppercase tracking-wider font-bold text-slate-500">Weekly Average</span>
+                            <span class="block text-lg font-bold text-slate-100" id="weeklyAverage">0 kcal · 0g</span>
+                        </div>
+                        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                            <span class="block text-[10px] uppercase tracking-wider font-bold text-slate-500">Streak</span>
+                            <span class="block text-lg font-bold text-emerald-400" id="goalStreak">0 days</span>
+                        </div>
+                        <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+                            <span class="block text-[10px] uppercase tracking-wider font-bold text-slate-500">What to Eat Next</span>
+                            <span class="block text-sm font-bold text-slate-100 leading-snug" id="eatNextSuggestion">Log a meal to start</span>
                         </div>
                     </div>
 
@@ -339,7 +368,7 @@
 
     <!-- MOBILE BOTTOM NAVIGATION TAB BAR (Hidden on lg+ Desktop Screens) -->
     <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-lg border-t border-slate-800 lg:hidden z-40 shadow-2xl">
-        <div class="grid grid-cols-4 h-16 max-w-lg mx-auto">
+        <div class="grid grid-cols-5 h-20 max-w-lg mx-auto px-1">
             <!-- Tab 1: Dashboard / Home -->
             <button id="nav-btn-dashboard" onclick="switchMobileTab('dashboard')" class="flex flex-col items-center justify-center text-brand-500 transition-all focus:outline-none py-1 relative">
                 <span id="nav-line-dashboard" class="absolute top-0 w-8 h-1 bg-brand-500 rounded-b-full transition-all"></span>
@@ -356,6 +385,16 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                 </svg>
                 <span class="text-[10px] font-bold tracking-wide">Diary</span>
+            </button>
+
+            <!-- Primary Action: Log Food -->
+            <button id="nav-btn-logfood" onclick="openLogFoodMobile()" class="flex flex-col items-center justify-center text-slate-950 transition-all focus:outline-none py-1 relative -mt-6" aria-label="Log Food">
+                <span class="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-400 to-accent-500 shadow-lg shadow-brand-500/30 border border-brand-200/30 flex flex-col items-center justify-center active:scale-95 transition-transform">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    <span class="text-[10px] font-black tracking-tight leading-none mt-0.5">Log Food</span>
+                </span>
             </button>
 
             <!-- Tab 3: History -->
@@ -380,7 +419,7 @@
     </nav>
 
     <!-- TOAST POPUP NOTIFICATION COMPONENT -->
-    <div id="toastContainer" class="fixed bottom-20 lg:bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none"></div>
+    <div id="toastContainer" class="fixed bottom-24 lg:bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none"></div>
 
     <!-- MODAL: CREATE CUSTOM FOOD PRESET -->
     <div id="customFoodModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-all duration-300">
@@ -656,6 +695,16 @@
             setDisplayState(pTargets, tabId === 'targets');
         }
 
+        function openLogFoodMobile() {
+            switchMobileTab('dashboard');
+            const presetsPanel = document.getElementById('panel-presets');
+            if (presetsPanel) {
+                requestAnimationFrame(() => {
+                    presetsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            }
+        }
+
         function renderDateTitles() {
             const picker = document.getElementById('datePicker');
             const dateStr = appState.selectedDate;
@@ -706,6 +755,77 @@
                 return { emoji: match[1], name: match[2].trim() };
             }
             return { emoji: "ðŸ¥—", name: fullName.trim() };
+        }
+
+
+        function getDailyTotals(dateStr) {
+            const entries = appState.logs[dateStr] || [];
+            return entries.reduce((totals, entry) => {
+                totals.calories += entry.calories || 0;
+                totals.protein += entry.protein || 0;
+                return totals;
+            }, { calories: 0, protein: 0 });
+        }
+
+        function getWeeklyAverages(endDateStr) {
+            const endDate = parseDateString(endDateStr);
+            let totalCalories = 0;
+            let totalProtein = 0;
+
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(endDate);
+                date.setDate(endDate.getDate() - i);
+                const totals = getDailyTotals(formatDateString(date));
+                totalCalories += totals.calories;
+                totalProtein += totals.protein;
+            }
+
+            return {
+                calories: Math.round(totalCalories / 7),
+                protein: totalProtein / 7
+            };
+        }
+
+        function getProteinGoalStreak(endDateStr) {
+            const date = parseDateString(endDateStr);
+            let streak = 0;
+
+            while (true) {
+                const dateStr = formatDateString(date);
+                const totals = getDailyTotals(dateStr);
+                if (totals.protein < appState.goals.protein) break;
+                streak += 1;
+                date.setDate(date.getDate() - 1);
+            }
+
+            return streak;
+        }
+
+        function getEatNextSuggestion(remainingCalories, remainingProtein) {
+            if (remainingCalories <= 0 && remainingProtein <= 0) {
+                return "Targets complete 🎉";
+            }
+
+            const allPresets = [...basePresetDatabase, ...appState.customPresets]
+                .filter(food => food.calories > 0 && food.protein > 0)
+                .map(food => ({
+                    ...food,
+                    proteinPerCalorie: food.protein / food.calories
+                }))
+                .sort((a, b) => b.proteinPerCalorie - a.proteinPerCalorie);
+
+            const calorieRoom = Math.max(remainingCalories, 150);
+            const bestFit = allPresets.find(food => food.calories <= calorieRoom) || allPresets[0];
+
+            if (!bestFit) return "Add a lean protein";
+
+            if (remainingProtein <= 0) {
+                return `Keep it light: ${bestFit.name}`;
+            }
+
+            const servingsNeeded = Math.max(1, Math.ceil(remainingProtein / bestFit.protein));
+            const servingLabel = servingsNeeded === 1 ? bestFit.name : `${servingsNeeded}× ${bestFit.name}`;
+            return `${servingLabel} (${Math.round(bestFit.protein * servingsNeeded)}g protein)`;
         }
 
         // Calculate totals for active selection date and animate circles/bars
@@ -822,6 +942,20 @@
                 ringProt.classList.add('text-accent-500');
                 ringProt.classList.remove('text-emerald-500');
             }
+
+
+            const remainingCalories = appState.goals.calories - loggedCal;
+            const remainingProtein = appState.goals.protein - loggedProt;
+            const mealCount = todayLogs.length;
+            const weeklyAverages = getWeeklyAverages(appState.selectedDate);
+            const goalStreak = getProteinGoalStreak(appState.selectedDate);
+
+            document.getElementById('remainingCalories').textContent = `${Math.max(Math.round(remainingCalories), 0).toLocaleString()} kcal`;
+            document.getElementById('remainingProtein').textContent = `${Math.max(remainingProtein, 0).toFixed(1)}g`;
+            document.getElementById('proteinPerMeal').textContent = mealCount ? `${(loggedProt / mealCount).toFixed(1)}g` : '0g';
+            document.getElementById('weeklyAverage').textContent = `${weeklyAverages.calories.toLocaleString()} kcal · ${weeklyAverages.protein.toFixed(1)}g`;
+            document.getElementById('goalStreak').textContent = `${goalStreak} ${goalStreak === 1 ? 'day' : 'days'}`;
+            document.getElementById('eatNextSuggestion').textContent = getEatNextSuggestion(remainingCalories, remainingProtein);
 
             document.getElementById('macroCarbStats').textContent = `${loggedCarbs.toFixed(1)}g`;
             document.getElementById('macroFatStats').textContent = `${loggedFats.toFixed(1)}g`;
