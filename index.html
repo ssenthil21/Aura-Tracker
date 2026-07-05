@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura Tracker - Daily Calorie & Protein Planner</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                        },
+                        accent: {
+                            500: '#06b6d4',
+                            600: '#0891b2',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Smooth transitions for dashboard progress bars */
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* Touch optimization helper rules */
+        button, input, select {
+            touch-action: manipulation;
+        }
+
+        .protein-orbiter-node {
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease, border-color 0.2s;
+        }
+        
+        /* Enable pointer interactions when constellation is visible (on either hover or click toggle) */
+        .group\/protein:hover #proteinOrbiters,
+        .active-orbiters #proteinOrbiters {
+            pointer-events: auto !important;
+        }
+
+        /* Scale and transition orbiting constellation nodes outwards */
+        .group\/protein:hover .protein-orbiter-node,
+        .active-orbiters .protein-orbiter-node {
+            transform: translate(var(--tx), var(--ty)) scale(1) !important;
+            opacity: 1 !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-brand-500 selection:text-slate-950 font-sans pb-28 lg:pb-12">
+
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div class="bg-gradient-to-tr from-brand-500 to-accent-500 p-2 rounded-xl shadow-lg shadow-brand-500/20 shrink-0">
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6 text-slate-950" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <h1 class="text-base sm:text-xl font-bold bg-gradient-to-r from-brand-100 to-slate-100 bg-clip-text text-transparent truncate">Aura Tracker</h1>
+                    <p class="text-[10px] sm:text-xs text-slate-400 font-medium truncate">Calorie & Protein Intelligence</p>
+                </div>
+            </div>
+            
+            <!-- Calendar Navigation Element -->
+            <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+                <button onclick="changeDate(-1)" class="p-2 sm:p-2.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-all border border-slate-800 min-w-[38px] min-h-[38px] flex items-center justify-center" title="Previous Day">
+                    <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <div class="relative">
+                    <input type="date" id="datePicker" onchange="onDateChanged()" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs sm:text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block px-2 sm:px-3 py-1.5 focus:outline-none transition-all cursor-pointer min-h-[38px]">
+                </div>
+                <button onclick="changeDate(1)" class="p-2 sm:p-2.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-100 transition-all border border-slate-800 min-w-[38px] min-h-[38px] flex items-center justify-center" title="Next Day">
+                    <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 sm:mt-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+            
+            <!-- LEFT COLUMN (Span 5): Dashboard Ring Indicators & Master Setup -->
+            <div class="lg:col-span-5 space-y-4 sm:space-y-6">
+                
+                <!-- Daily Goals Ring Status Card (Active on Dashboard/Home Tab) -->
+                <div id="panel-dashboard" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl relative block lg:block">
+                    <div class="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-brand-500/5 rounded-full blur-2xl"></div>
+                        <div class="absolute bottom-0 left-0 w-32 h-32 bg-accent-500/5 rounded-full blur-2xl"></div>
+                    </div>
+                    
+                    <h2 class="text-base sm:text-lg font-semibold text-slate-100 mb-3 sm:mb-4 flex items-center gap-2 relative z-10">
+                        <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"/></svg>
+                        Daily Progress Dashboard
+                    </h2>
+
+                    <!-- Dual Ring Graphics Container -->
+                    <div class="flex justify-around items-center gap-4 sm:gap-6 py-2 relative z-10">
+                        <!-- Calorie Progress SVG Ring -->
+                        <div class="flex flex-col items-center gap-1.5">
+                            <div class="relative w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 144 144">
+                                    <circle class="text-slate-800" stroke-width="10" stroke="currentColor" fill="transparent" r="58" cx="72" cy="72"/>
+                                    <circle class="text-brand-500 progress-ring__circle" stroke-width="10" id="ringCalories" stroke-dasharray="364.4" stroke-dashoffset="364.4" stroke-linecap="round" stroke="currentColor" fill="transparent" r="58" cx="72" cy="72"/>
+                                </svg>
+                                <div class="absolute text-center">
+                                    <span class="block text-xl sm:text-2xl font-bold tracking-tight text-slate-100" id="dashCalTotal">0</span>
+                                    <span class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">/ <span id="dashCalGoal">2000</span> kcal</span>
+                                </div>
+                            </div>
+                            <span class="text-xs sm:text-sm font-semibold text-brand-500 mt-1">Calories</span>
+                            <span class="text-[10px] sm:text-xs text-slate-400" id="calPercentage">0% Completed</span>
+                        </div>
+
+                        <!-- Protein Progress SVG Ring with interactive constellation states -->
+                        <div class="flex flex-col items-center gap-1.5 relative group/protein" id="proteinRingContainer">
+                            <div class="relative w-28 h-28 sm:w-36 sm:h-36 flex items-center justify-center cursor-pointer" onclick="toggleTouchConstellation(event)">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 144 144">
+                                    <circle class="text-slate-800" stroke-width="10" stroke="currentColor" fill="transparent" r="58" cx="72" cy="72"/>
+                                    <circle class="text-accent-500 progress-ring__circle" stroke-width="10" id="ringProtein" stroke-dasharray="364.4" stroke-dashoffset="364.4" stroke-linecap="round" stroke="currentColor" fill="transparent" r="58" cx="72" cy="72"/>
+                                </svg>
+                                <div class="absolute text-center pointer-events-none">
+                                    <span class="block text-xl sm:text-2xl font-bold tracking-tight text-slate-100" id="dashProtTotal">0</span>
+                                    <span class="text-[9px] uppercase font-bold text-slate-400 tracking-wider">/ <span id="dashProtGoal">150</span> g</span>
+                                </div>
+
+                                <!-- Absolute container for calculated protein bubbles -->
+                                <div id="proteinOrbiters" class="absolute inset-0 pointer-events-none group-hover/protein:pointer-events-auto"></div>
+                            </div>
+                            <span class="text-xs sm:text-sm font-semibold text-accent-500 mt-1 flex items-center gap-1 select-none">
+                                Protein
+                                <span class="text-[9px] text-slate-500 font-normal sm:hidden">(Tap to view)</span>
+                            </span>
+                            <span class="text-[10px] sm:text-xs text-slate-400" id="protPercentage">0% Completed</span>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Macro Progress Bars -->
+                    <div class="mt-4 sm:mt-6 space-y-3 pt-3 sm:pt-4 border-t border-slate-800 relative z-10">
+                        <!-- Carbs Tracker -->
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-400 mb-1">
+                                <span class="flex items-center gap-1.5 font-medium"><span class="w-2.5 h-2.5 bg-yellow-500 rounded-full"></span>Carbohydrates</span>
+                                <span class="font-semibold text-slate-300" id="macroCarbStats">0g</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                <div id="barCarbProgress" class="bg-yellow-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <!-- Fats Tracker -->
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-400 mb-1">
+                                <span class="flex items-center gap-1.5 font-medium"><span class="w-2.5 h-2.5 bg-red-500 rounded-full"></span>Fats</span>
+                                <span class="font-semibold text-slate-300" id="macroFatStats">0g</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                <div id="barFatProgress" class="bg-red-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daily Target Goals Adjustment Area (Active on Targets Tab) -->
+                <div id="panel-targets" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl hidden lg:block">
+                    <h3 class="text-sm sm:text-base font-semibold text-slate-100 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        Set Nutritional Targets
+                    </h3>
+                    <div class="grid grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Calories (kcal)</label>
+                            <input type="number" id="goalInputCal" oninput="saveGoals()" min="500" max="10000" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-sm focus:ring-brand-500 focus:border-brand-500 block p-2 sm:p-2.5 focus:outline-none transition-all min-h-[40px]">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Protein (g)</label>
+                            <input type="number" id="goalInputProt" oninput="saveGoals()" min="10" max="500" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-slate-200 text-sm focus:ring-brand-500 focus:border-brand-500 block p-2 sm:p-2.5 focus:outline-none transition-all min-h-[40px]">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Day Log History Log Summary (Active on History Tab) -->
+                <div id="panel-history" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl hidden lg:block">
+                    <h3 class="text-sm sm:text-base font-semibold text-slate-100 mb-2.5 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Day Log History (Last 7 Days)
+                    </h3>
+                    <div class="space-y-2 mt-2 max-h-48 overflow-y-auto pr-1" id="historySummaryList">
+                        <!-- Dynamically filled with past dates -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT COLUMN (Span 7): Preset Library & Log Tables -->
+            <div class="lg:col-span-7 space-y-4 sm:space-y-6">
+                
+                <!-- Preset Food Database / Search Block (Active on Dashboard/Home Tab) -->
+                <div id="panel-presets" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl block lg:block">
+                    <div class="flex flex-col gap-3 mb-4">
+                        <div class="flex items-center justify-between gap-2">
+                            <div>
+                                <h2 class="text-base sm:text-lg font-semibold text-slate-100 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                                    Food Preset Library
+                                </h2>
+                                <p class="text-[10px] sm:text-xs text-slate-400 mt-0.5">Adjust weights or quantities directly on the card, then log it</p>
+                            </div>
+                            
+                            <!-- Show Creator Dialog Toggle -->
+                            <button onclick="openModal('customFoodModal')" class="bg-brand-600 hover:bg-brand-500 text-slate-950 text-xs font-bold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-all shadow-md shadow-brand-600/10 shrink-0 min-h-[36px]">
+                                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                                Create Food
+                            </button>
+                        </div>
+                        
+                        <!-- Search Bar -->
+                        <div class="w-full">
+                            <input type="text" id="foodSearchInput" oninput="filterPresets()" placeholder="Search library..." class="w-full bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 focus:ring-brand-500 focus:border-brand-500 block p-2.5 focus:outline-none transition-all min-h-[38px]">
+                        </div>
+                    </div>
+
+                    <!-- Category Tab Filter -->
+                    <div class="flex gap-1.5 overflow-x-auto pb-3 mb-4 text-xs font-medium border-b border-slate-800 scrollbar-none">
+                        <button onclick="filterPresetCategory('all')" id="btn-cat-all" class="px-3 py-1.5 rounded-lg transition-all bg-slate-800 text-slate-200 shrink-0 min-h-[32px]">All Presets</button>
+                        <button onclick="filterPresetCategory('Lean Protein')" id="btn-cat-lean" class="px-3 py-1.5 rounded-lg transition-all bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-slate-200 shrink-0 min-h-[32px]">Lean Protein</button>
+                        <button onclick="filterPresetCategory('Meat & Fish')" id="btn-cat-meat" class="px-3 py-1.5 rounded-lg transition-all bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-slate-200 shrink-0 min-h-[32px]">Meat & Fish</button>
+                        <button onclick="filterPresetCategory('Veg & Grains')" id="btn-cat-veg" class="px-3 py-1.5 rounded-lg transition-all bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-slate-200 shrink-0 min-h-[32px]">Veg & Grains</button>
+                        <button onclick="filterPresetCategory('Drinks & Snacks')" id="btn-cat-snacks" class="px-3 py-1.5 rounded-lg transition-all bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-slate-200 shrink-0 min-h-[32px]">Snacks & Liquids</button>
+                        <button onclick="filterPresetCategory('Custom')" id="btn-cat-custom" class="px-3 py-1.5 rounded-lg transition-all bg-slate-950 text-slate-400 hover:bg-slate-800 hover:text-slate-200 shrink-0 min-h-[32px]">My Custom Foods</button>
+                    </div>
+
+                    <!-- Preset Cards Container Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[460px] overflow-y-auto pr-1" id="presetsGrid">
+                        <!-- Automatically generated cards go here -->
+                    </div>
+                </div>
+
+                <!-- Today's Log Categories (Active on Diary Tab) -->
+                <div id="panel-logbook" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl hidden lg:block">
+                    <div class="flex items-center justify-between gap-2 mb-4">
+                        <div>
+                            <h2 class="text-base sm:text-lg font-semibold text-slate-100 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-accent-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                                Diet Log Book
+                            </h2>
+                            <p class="text-[10px] sm:text-xs text-slate-400 mt-0.5" id="dateLogBookSubtitle">Today's Meal Records</p>
+                        </div>
+                        <button onclick="openConfirmModal('clearAll')" class="text-xs font-semibold text-red-400 hover:text-red-300 transition-all border border-red-500/30 hover:border-red-500/50 bg-red-950/20 px-3 py-2 rounded-lg min-h-[36px]">
+                            Clear This Day
+                        </button>
+                    </div>
+
+                    <!-- Unified Logs by Meal Type -->
+                    <div class="space-y-4" id="mealsLogsContainer">
+                        <!-- Breakfast Container (Using immune HTML entities) -->
+                        <div class="bg-slate-950/40 rounded-xl p-3 sm:p-4 border border-slate-800/60">
+                            <div class="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-800">
+                                <h3 class="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2">
+                                    &#127859; Breakfast
+                                </h3>
+                                <span class="text-[10px] sm:text-xs text-slate-400 font-medium" id="total-Breakfast">0 kcal | 0g P</span>
+                            </div>
+                            <ul class="space-y-1.5" id="list-Breakfast">
+                                <li class="text-xs text-slate-500 py-1 text-center italic">No breakfast foods logged yet</li>
+                            </ul>
+                        </div>
+
+                        <!-- Lunch Container -->
+                        <div class="bg-slate-950/40 rounded-xl p-3 sm:p-4 border border-slate-800/60">
+                            <div class="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-800">
+                                <h3 class="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2">
+                                    &#129367; Lunch
+                                </h3>
+                                <span class="text-[10px] sm:text-xs text-slate-400 font-medium" id="total-Lunch">0 kcal | 0g P</span>
+                            </div>
+                            <ul class="space-y-1.5" id="list-Lunch">
+                                <li class="text-xs text-slate-500 py-1 text-center italic">No lunch foods logged yet</li>
+                            </ul>
+                        </div>
+
+                        <!-- Dinner Container -->
+                        <div class="bg-slate-950/40 rounded-xl p-3 sm:p-4 border border-slate-800/60">
+                            <div class="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-800">
+                                <h3 class="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2">
+                                    &#129385; Dinner
+                                </h3>
+                                <span class="text-[10px] sm:text-xs text-slate-400 font-medium" id="total-Dinner">0 kcal | 0g P</span>
+                            </div>
+                            <ul class="space-y-1.5" id="list-Dinner">
+                                <li class="text-xs text-slate-500 py-1 text-center italic">No dinner foods logged yet</li>
+                            </ul>
+                        </div>
+
+                        <!-- Snacks Container -->
+                        <div class="bg-slate-950/40 rounded-xl p-3 sm:p-4 border border-slate-800/60">
+                            <div class="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-800">
+                                <h3 class="text-xs sm:text-sm font-bold text-slate-200 flex items-center gap-2">
+                                    &#127822; Snacks
+                                </h3>
+                                <span class="text-[10px] sm:text-xs text-slate-400 font-medium" id="total-Snacks">0 kcal | 0g P</span>
+                            </div>
+                            <ul class="space-y-1.5" id="list-Snacks">
+                                <li class="text-xs text-slate-500 py-1 text-center italic">No snack foods logged yet</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- MOBILE BOTTOM NAVIGATION TAB BAR (Hidden on lg+ Desktop Screens) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-lg border-t border-slate-800 lg:hidden z-40 shadow-2xl">
+        <div class="grid grid-cols-4 h-16 max-w-lg mx-auto">
+            <!-- Tab 1: Dashboard / Home -->
+            <button id="nav-btn-dashboard" onclick="switchMobileTab('dashboard')" class="flex flex-col items-center justify-center text-brand-500 transition-all focus:outline-none py-1 relative">
+                <span id="nav-line-dashboard" class="absolute top-0 w-8 h-1 bg-brand-500 rounded-b-full transition-all"></span>
+                <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                </svg>
+                <span class="text-[10px] font-bold tracking-wide">Home</span>
+            </button>
+
+            <!-- Tab 2: Diary / Logbook -->
+            <button id="nav-btn-logbook" onclick="switchMobileTab('logbook')" class="flex flex-col items-center justify-center text-slate-400 transition-all focus:outline-none py-1 relative">
+                <span id="nav-line-logbook" class="absolute top-0 w-8 h-1 bg-brand-500 rounded-b-full transition-all opacity-0"></span>
+                <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                </svg>
+                <span class="text-[10px] font-bold tracking-wide">Diary</span>
+            </button>
+
+            <!-- Tab 3: History -->
+            <button id="nav-btn-history" onclick="switchMobileTab('history')" class="flex flex-col items-center justify-center text-slate-400 transition-all focus:outline-none py-1 relative">
+                <span id="nav-line-history" class="absolute top-0 w-8 h-1 bg-brand-500 rounded-b-full transition-all opacity-0"></span>
+                <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                </svg>
+                <span class="text-[10px] font-bold tracking-wide">History</span>
+            </button>
+
+            <!-- Tab 4: Targets Settings -->
+            <button id="nav-btn-targets" onclick="switchMobileTab('targets')" class="flex flex-col items-center justify-center text-slate-400 transition-all focus:outline-none py-1 relative">
+                <span id="nav-line-targets" class="absolute top-0 w-8 h-1 bg-brand-500 rounded-b-full transition-all opacity-0"></span>
+                <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.43l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span class="text-[10px] font-bold tracking-wide">Targets</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- TOAST POPUP NOTIFICATION COMPONENT -->
+    <div id="toastContainer" class="fixed bottom-20 lg:bottom-6 right-6 flex flex-col gap-2 z-50 pointer-events-none"></div>
+
+    <!-- MODAL: CREATE CUSTOM FOOD PRESET -->
+    <div id="customFoodModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-2xl relative transform scale-95 transition-all max-h-[90vh] overflow-y-auto">
+            <!-- Close Modal -->
+            <button onclick="closeModal('customFoodModal')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-100 transition-all p-1">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <h3 class="text-base sm:text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
+                &#127859; Create Custom Preset
+            </h3>
+            <p class="text-[11px] sm:text-xs text-slate-400 mb-4">Add your food item. Set its base serving quantity (like 100g or 1 bar) and it will scale dynamically when logged.</p>
+            
+            <form id="customPresetForm" onsubmit="handleCustomFoodSubmit(event)" class="space-y-3">
+                
+                <!-- Food Name and Emoji Picker with Safe Entities -->
+                <div class="grid grid-cols-12 gap-2">
+                    <div class="col-span-8">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Food Name *</label>
+                        <input type="text" id="custName" required placeholder="e.g. Greek Yogurt" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 p-2.5 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[40px]">
+                    </div>
+                    <div class="col-span-4">
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Emoji *</label>
+                        <select id="custEmoji" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 p-2.5 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[40px]">
+                            <option value="&#127869;&#65039;">&#127869;&#65039; Meal</option>
+                            <option value="&#127859;">&#127859; Egg</option>
+                            <option value="&#127831;">&#127831; Chicken</option>
+                            <option value="&#129385;">&#129385; Meat</option>
+                            <option value="&#128031;">&#128031; Fish</option>
+                            <option value="&#127844;">&#127844; Seafood</option>
+                            <option value="&#129371;">&#129371; Dairy</option>
+                            <option value="&#129472;">&#129472; Cheese</option>
+                            <option value="&#129363;">&#129363; Oatmeal</option>
+                            <option value="&#127834;">&#127834; Rice</option>
+                            <option value="&#129361;">&#129361; Avocado</option>
+                            <option value="&#127822;">&#127822; Fruit</option>
+                            <option value="&#127851;">&#127851; Chocolate</option>
+                            <option value="&#9749;">&#9749; Drink</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Base Quantity *</label>
+                        <input type="number" id="custBaseAmount" required min="1" value="100" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 p-2.5 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[40px]">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Base Unit (g, whites, ml, bar) *</label>
+                        <input type="text" id="custUnit" required value="g" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 p-2.5 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[40px]">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Calories (kcal) *</label>
+                        <input type="number" id="custCalories" required min="0" placeholder="e.g. 59" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 p-2.5 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[40px]">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Protein (g) *</label>
+                        <input type="number" step="0.1" id="custProtein" required min="0" placeholder="e.g. 10.0" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 p-2.5 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[40px]">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Carbohydrates (g)</label>
+                        <input type="number" step="0.1" id="custCarbs" min="0" placeholder="e.g. 3.6" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 p-2.5 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[40px]">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Fats (g)</label>
+                        <input type="number" step="0.1" id="custFats" min="0" placeholder="e.g. 0.4" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 p-2.5 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[40px]">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Preset Category</label>
+                    <select id="custCategory" class="w-full bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-200 p-2.5 focus:outline-none focus:ring-1 focus:ring-brand-500 min-h-[40px]">
+                        <option value="Lean Protein">Lean Protein</option>
+                        <option value="Meat & Fish">Meat & Fish</option>
+                        <option value="Veg & Grains">Veg & Grains</option>
+                        <option value="Drinks & Snacks">Snacks & Liquids</option>
+                    </select>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-2.5">
+                    <button type="button" onclick="closeModal('customFoodModal')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 px-4 rounded-lg transition-all text-xs min-h-[36px]">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-brand-600 hover:bg-brand-500 text-slate-950 font-extrabold py-2 px-5 rounded-lg transition-all text-xs shadow-md shadow-brand-500/15 min-h-[36px]">
+                        Save Preset
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONFIRMATION DIALOG MODAL -->
+    <div id="confirmDialogModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm transition-all duration-300">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative transform scale-95 transition-all">
+            <h3 class="text-base sm:text-lg font-bold text-slate-100 mb-2 flex items-center gap-2" id="confirmTitle">
+                Confirmation Needed
+            </h3>
+            <p class="text-xs sm:text-sm text-slate-400 mb-6" id="confirmMessage">
+                Are you sure you want to perform this action?
+            </p>
+            <div class="flex justify-end gap-2.5">
+                <button onclick="closeModal('confirmDialogModal')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 px-4 rounded-lg transition-all text-xs min-h-[36px]">
+                    Cancel
+                </button>
+                <button id="confirmExecuteBtn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-5 rounded-lg transition-all text-xs shadow-md shadow-red-600/10 min-h-[36px]">
+                    Proceed
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT INFRASTRUCTURE -->
+    <script>
+        // Core baseline preset database using robust Unicode escape values to bypass string parsing corruption
+        const basePresetDatabase = [
+            { name: "Prawns", emoji: "\u{1F364}", calories: 85, protein: 20, carbs: 0, fat: 1, category: "Lean Protein", baseAmount: 100, unit: "g" },
+            { name: "Egg Whites", emoji: "\u{1F95A}", calories: 85, protein: 18, carbs: 1, fat: 0.3, category: "Lean Protein", baseAmount: 5, unit: "whites" },
+            { name: "Goat Meat", emoji: "\u{1F410}", calories: 143, protein: 27, carbs: 0, fat: 3, category: "Meat & Fish", baseAmount: 100, unit: "g" },
+            { name: "Chicken Breast", emoji: "\u{1F357}", calories: 165, protein: 31, carbs: 0, fat: 3.6, category: "Lean Protein", baseAmount: 100, unit: "g" },
+            { name: "Soya Chunks", emoji: "\u{1F331}", calories: 172, protein: 26, carbs: 15, fat: 0.5, category: "Lean Protein", baseAmount: 50, unit: "g" },
+            { name: "Salmon", emoji: "\u{1F41F}", calories: 160, protein: 21.5, carbs: 0, fat: 8, category: "Meat & Fish", baseAmount: 100, unit: "g" },
+            { name: "Milk Drink", emoji: "\u{1F95B}", calories: 289, protein: 30, carbs: 26.8, fat: 6.4, category: "Drinks & Snacks", baseAmount: 425, unit: "ml" },
+            { name: "Barebells Protein Bar", emoji: "\u{1F36B}", calories: 203, protein: 20, carbs: 15, fat: 8.5, category: "Drinks & Snacks", baseAmount: 1, unit: "bar" },
+            { name: "Paneer", emoji: "\u{1F9C0}", calories: 280, protein: 19, carbs: 3, fat: 21, category: "Veg & Grains", baseAmount: 100, unit: "g" },
+            { name: "Roasted Chana", emoji: "\u{1F35B}", calories: 180, protein: 11, carbs: 28, fat: 3, category: "Veg & Grains", baseAmount: 50, unit: "g" },
+            { name: "Boiled Peanuts", emoji: "\u{1F95C}", calories: 318, protein: 13.5, carbs: 21.3, fat: 22, category: "Veg & Grains", baseAmount: 100, unit: "g" },
+            { name: "Cooked Rice", emoji: "\u{1F35A}", calories: 130, protein: 2.7, carbs: 28, fat: 0.3, category: "Veg & Grains", baseAmount: 100, unit: "g" },
+            { name: "Tea / Coffee (with Milk & Sugar)", emoji: "\u{2615}", calories: 90, protein: 2, carbs: 15, fat: 2, category: "Drinks & Snacks", baseAmount: 1, unit: "cup" },
+            { name: "Cold Drink (Soda/Cola)", emoji: "\u{1F964}", calories: 140, protein: 0, carbs: 35, fat: 0, category: "Drinks & Snacks", baseAmount: 330, unit: "ml" },
+            { name: "Whey Protein", emoji: "\u{1F964}", calories: 120, protein: 24, carbs: 2, fat: 1.5, category: "Lean Protein", baseAmount: 30, unit: "g" },
+            { name: "Crab Meat", emoji: "\u{1F980}", calories: 87, protein: 19, carbs: 0, fat: 1, category: "Meat & Fish", baseAmount: 100, unit: "g" },
+            { name: "Tuna Fillet / Canned", emoji: "\u{1F41F}", calories: 116, protein: 26, carbs: 0, fat: 1, category: "Lean Protein", baseAmount: 100, unit: "g" },
+            { name: "Cod Fillet", emoji: "\u{1F41F}", calories: 82, protein: 18, carbs: 0, fat: 0.7, category: "Lean Protein", baseAmount: 100, unit: "g" },
+            { name: "Mackerel", emoji: "\u{1F41F}", calories: 205, protein: 19, carbs: 0, fat: 14, category: "Meat & Fish", baseAmount: 100, unit: "g" }
+        ];
+
+        // State Machine
+        let appState = {
+            selectedDate: "",
+            activeMobileTab: "dashboard", 
+            goals: {
+                calories: 2000,
+                protein: 150
+            },
+            logs: {},          
+            customPresets: [], 
+            categoryFilter: "all",
+            searchFilter: "",
+            currentFilteredPresets: [] // Thread-safe state holder for filtered foods lookup
+        };
+
+        // Initialize App on load
+        window.addEventListener('load', () => {
+            const todayStr = getTodayString();
+            appState.selectedDate = todayStr;
+            document.getElementById('datePicker').value = todayStr;
+
+            // Load data from Local Storage
+            loadFromLocalStorage();
+
+            // Set up active views
+            switchMobileTab(appState.activeMobileTab);
+
+            // Render components
+            renderAll();
+        });
+
+        // Date String helpers
+        function getTodayString() {
+            const date = new Date();
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function formatDateString(dateObj) {
+            const yyyy = dateObj.getFullYear();
+            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const dd = String(dateObj.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function parseDateString(dateStr) {
+            const parts = dateStr.split('-');
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        // Load Persistent Data
+        function loadFromLocalStorage() {
+            const savedLogs = localStorage.getItem('aura_logs');
+            const savedCustomPresets = localStorage.getItem('aura_custom_presets');
+            const savedGoals = localStorage.getItem('aura_goals');
+
+            if (savedLogs) {
+                appState.logs = JSON.parse(savedLogs);
+            }
+            if (savedCustomPresets) {
+                appState.customPresets = JSON.parse(savedCustomPresets);
+            }
+            if (savedGoals) {
+                appState.goals = JSON.parse(savedGoals);
+            }
+
+            // Sync Goals Inputs values
+            document.getElementById('goalInputCal').value = appState.goals.calories;
+            document.getElementById('goalInputProt').value = appState.goals.protein;
+        }
+
+        // Save State to storage
+        function saveToLocalStorage() {
+            localStorage.setItem('aura_logs', JSON.stringify(appState.logs));
+            localStorage.setItem('aura_custom_presets', JSON.stringify(appState.customPresets));
+            localStorage.setItem('aura_goals', JSON.stringify(appState.goals));
+        }
+
+        // Render Dashboard, Logs, Presets, and History
+        function renderAll() {
+            renderDateTitles();
+            renderDashboard();
+            renderPresetGrid();
+            renderMealsLog();
+            renderHistoryLogs();
+        }
+
+        // Responsive Menu tab switching logic
+        function switchMobileTab(tabId) {
+            appState.activeMobileTab = tabId;
+
+            const menuTabs = ['dashboard', 'logbook', 'history', 'targets'];
+            menuTabs.forEach(t => {
+                const btn = document.getElementById(`nav-btn-${t}`);
+                const line = document.getElementById(`nav-line-${t}`);
+                if (btn && line) {
+                    if (t === tabId) {
+                        btn.classList.add('text-brand-500');
+                        btn.classList.remove('text-slate-400');
+                        line.classList.remove('opacity-0');
+                    } else {
+                        btn.classList.add('text-slate-400');
+                        btn.classList.remove('text-brand-500');
+                        line.classList.add('opacity-0');
+                    }
+                }
+            });
+
+            const pDashboard = document.getElementById('panel-dashboard');
+            const pPresets = document.getElementById('panel-presets');
+            const pLogbook = document.getElementById('panel-logbook');
+            const pHistory = document.getElementById('panel-history');
+            const pTargets = document.getElementById('panel-targets');
+
+            function setDisplayState(el, isVisible) {
+                if (isVisible) {
+                    el.classList.remove('hidden');
+                    el.classList.add('block');
+                } else {
+                    el.classList.remove('block');
+                    el.classList.add('hidden');
+                }
+            }
+
+            setDisplayState(pDashboard, tabId === 'dashboard');
+            setDisplayState(pPresets, tabId === 'dashboard');
+            setDisplayState(pLogbook, tabId === 'logbook');
+            setDisplayState(pHistory, tabId === 'history');
+            setDisplayState(pTargets, tabId === 'targets');
+        }
+
+        function renderDateTitles() {
+            const picker = document.getElementById('datePicker');
+            const dateStr = appState.selectedDate;
+            picker.value = dateStr;
+
+            const dateObj = parseDateString(dateStr);
+            const friendlyDate = dateObj.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+            
+            const todayStr = getTodayString();
+            const titlePrefix = (dateStr === todayStr) ? "Today's Log: " : "";
+            document.getElementById('dateLogBookSubtitle').textContent = `${titlePrefix}${friendlyDate}`;
+        }
+
+        function changeDate(daysOffset) {
+            const dateObj = parseDateString(appState.selectedDate);
+            dateObj.setDate(dateObj.getDate() + daysOffset);
+            
+            appState.selectedDate = formatDateString(dateObj);
+            renderAll();
+        }
+
+        function onDateChanged() {
+            const inputVal = document.getElementById('datePicker').value;
+            if (inputVal) {
+                appState.selectedDate = inputVal;
+                renderAll();
+            }
+        }
+
+        function saveGoals() {
+            const calVal = parseInt(document.getElementById('goalInputCal').value);
+            const protVal = parseInt(document.getElementById('goalInputProt').value);
+
+            if (calVal && calVal > 0) appState.goals.calories = calVal;
+            if (protVal && protVal > 0) appState.goals.protein = protVal;
+
+            saveToLocalStorage();
+            renderDashboard();
+            renderHistoryLogs();
+        }
+
+        function extractEmojiAndName(fullName) {
+            if (!fullName) return { emoji: "ðŸ¥—", name: "" };
+            // Regex to extract single emoji characters safely from start of name
+            const emojiRegex = /^([\uD800-\uDBFF][\uDC00-\uDFFF]|\p{Emoji_Presentation}|\p{Emoji})\s*(.*)$/u;
+            const match = fullName.match(emojiRegex);
+            if (match) {
+                return { emoji: match[1], name: match[2].trim() };
+            }
+            return { emoji: "ðŸ¥—", name: fullName.trim() };
+        }
+
+        // Calculate totals for active selection date and animate circles/bars
+        function renderDashboard() {
+            const todayLogs = appState.logs[appState.selectedDate] || [];
+            
+            let loggedCal = 0;
+            let loggedProt = 0;
+            let loggedCarbs = 0;
+            let loggedFats = 0;
+
+            let proteinContributors = [];
+
+            todayLogs.forEach(food => {
+                loggedCal += food.calories;
+                loggedProt += food.protein;
+                loggedCarbs += food.carbs || 0;
+                loggedFats += food.fat || 0;
+
+                if (food.protein > 0) {
+                    const parsed = extractEmojiAndName(food.name);
+                    proteinContributors.push({
+                        name: parsed.name,
+                        protein: food.protein,
+                        emoji: parsed.emoji
+                    });
+                }
+            });
+
+            // Render Orbiting protein bubbles
+            const orbitersContainer = document.getElementById('proteinOrbiters');
+            orbitersContainer.innerHTML = '';
+
+            if (proteinContributors.length > 0) {
+                let displayItems = [...proteinContributors];
+                if (displayItems.length > 5) {
+                    const top4 = displayItems.slice(0, 4);
+                    const remaining = displayItems.slice(4);
+                    const remainingProt = remaining.reduce((sum, item) => sum + item.protein, 0);
+                    displayItems = [...top4, { name: "Other Items", protein: remainingProt, emoji: "ðŸ¥—" }];
+                }
+
+                const totalNodes = displayItems.length;
+                const isMobile = window.innerWidth < 640;
+                const radius = isMobile ? 65 : 88;
+
+                displayItems.forEach((item, index) => {
+                    const angle = (index * (2 * Math.PI) / totalNodes) - (Math.PI / 2);
+                    const tx = Math.round(Math.cos(angle) * radius);
+                    const ty = Math.round(Math.sin(angle) * radius);
+
+                    const bubble = document.createElement('div');
+                    bubble.className = "protein-orbiter-node absolute w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-900 border border-accent-500/30 shadow-lg shadow-accent-500/5 flex flex-col items-center justify-center transform scale-0 opacity-0 cursor-pointer z-30 group/bubble hover:border-accent-400 hover:scale-110";
+                    
+                    bubble.style.setProperty('--tx', `${tx}px`);
+                    bubble.style.setProperty('--ty', `${ty}px`);
+                    bubble.style.left = "calc(50% - 20px)";
+                    bubble.style.top = "calc(50% - 20px)";
+
+                    if (!isMobile) {
+                        bubble.style.left = "calc(50% - 22px)";
+                        bubble.style.top = "calc(50% - 22px)";
+                    }
+
+                    bubble.innerHTML = `
+                        <span class="text-base leading-none select-none">${item.emoji}</span>
+                        <span class="absolute -bottom-1 -right-1 bg-accent-600 text-slate-950 text-[8px] font-extrabold px-1 py-0.5 rounded-full scale-90">
+                            ${Math.round(item.protein)}g
+                        </span>
+                        <div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-slate-950 text-slate-100 text-[10px] py-1 px-2 rounded-lg border border-slate-800 shadow-xl opacity-0 group-hover/bubble:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50">
+                            ${item.name} (${item.protein.toFixed(1)}g Protein)
+                        </div>
+                    `;
+
+                    orbitersContainer.appendChild(bubble);
+                });
+            }
+
+            document.getElementById('dashCalTotal').textContent = Math.round(loggedCal);
+            document.getElementById('dashProtTotal').textContent = loggedProt.toFixed(1);
+            
+            document.getElementById('dashCalGoal').textContent = appState.goals.calories;
+            document.getElementById('dashProtGoal').textContent = appState.goals.protein;
+
+            const circumference = 364.42;
+
+            // Calorie progress percentage
+            const calRatio = Math.min(loggedCal / appState.goals.calories, 1.5);
+            const calOffset = circumference - (calRatio * circumference);
+            const ringCal = document.getElementById('ringCalories');
+            
+            ringCal.style.strokeDashoffset = calOffset;
+            const calPercentText = Math.round((loggedCal / appState.goals.calories) * 100);
+            document.getElementById('calPercentage').textContent = `${calPercentText}% Completed`;
+
+            // Protein progress percentage
+            const protRatio = Math.min(loggedProt / appState.goals.protein, 1.5);
+            const protOffset = circumference - (protRatio * circumference);
+            const ringProt = document.getElementById('ringProtein');
+            ringProt.style.strokeDashoffset = protOffset;
+            const protPercentText = Math.round((loggedProt / appState.goals.protein) * 100);
+            document.getElementById('protPercentage').textContent = `${protPercentText}% Completed`;
+
+            if (loggedCal > appState.goals.calories) {
+                ringCal.classList.replace('text-brand-500', 'text-amber-500');
+            } else {
+                ringCal.classList.add('text-brand-500');
+                ringCal.classList.remove('text-amber-500');
+            }
+
+            if (loggedProt >= appState.goals.protein) {
+                ringProt.classList.replace('text-accent-500', 'text-emerald-500');
+            } else {
+                ringProt.classList.add('text-accent-500');
+                ringProt.classList.remove('text-emerald-500');
+            }
+
+            document.getElementById('macroCarbStats').textContent = `${loggedCarbs.toFixed(1)}g`;
+            document.getElementById('macroFatStats').textContent = `${loggedFats.toFixed(1)}g`;
+
+            const carbPercentageWidth = Math.min((loggedCarbs / 300) * 100, 100);
+            const fatPercentageWidth = Math.min((loggedFats / 100) * 100, 100);
+
+            document.getElementById('barCarbProgress').style.width = `${carbPercentageWidth}%`;
+            document.getElementById('barFatProgress').style.width = `${fatPercentageWidth}%`;
+        }
+
+        // Toggle constellation bubbles on touch screens natively
+        function toggleTouchConstellation(event) {
+            event.stopPropagation();
+            const container = document.getElementById('proteinRingContainer');
+            if (container.classList.contains('active-orbiters')) {
+                container.classList.remove('active-orbiters');
+            } else {
+                container.classList.add('active-orbiters');
+                const dismissFunc = () => {
+                    container.classList.remove('active-orbiters');
+                    document.removeEventListener('click', dismissFunc);
+                };
+                document.addEventListener('click', dismissFunc);
+            }
+        }
+
+        function onPresetQtyChange(idx) {
+            const food = appState.currentFilteredPresets[idx];
+            if (!food) return;
+
+            const inputEl = document.getElementById(`inputQty-${idx}`);
+            let enteredQty = parseFloat(inputEl.value) || 0;
+            if (enteredQty < 0) {
+                enteredQty = 0;
+                inputEl.value = 0;
+            }
+
+            const multiplier = enteredQty / food.baseAmount;
+
+            document.getElementById(`displayCal-${idx}`).textContent = Math.round(food.calories * multiplier);
+            document.getElementById(`displayProt-${idx}`).textContent = (food.protein * multiplier).toFixed(1) + 'g';
+            document.getElementById(`displayCarbs-${idx}`).textContent = ((food.carbs || 0) * multiplier).toFixed(1) + 'g';
+            document.getElementById(`displayFats-${idx}`).textContent = ((food.fat || 0) * multiplier).toFixed(1) + 'g';
+        }
+
+        function adjustPresetQty(idx, increment) {
+            const inputEl = document.getElementById(`inputQty-${idx}`);
+            if (!inputEl) return;
+            let currentVal = parseFloat(inputEl.value) || 0;
+            let newVal = Math.max(0, currentVal + increment);
+            
+            inputEl.value = newVal;
+            onPresetQtyChange(idx);
+        }
+
+        function renderPresetGrid() {
+            const container = document.getElementById('presetsGrid');
+            container.innerHTML = '';
+
+            const combinedFoods = [
+                ...appState.customPresets.map((f, i) => ({ ...f, isCustom: true, customIdx: i, category: "Custom" })),
+                ...basePresetDatabase.map((f, i) => ({ ...f, isCustom: false, baseIdx: i }))
+            ];
+
+            const filteredFoods = combinedFoods.filter(food => {
+                if (appState.categoryFilter !== 'all' && food.category !== appState.categoryFilter) {
+                    return false;
+                }
+                if (appState.searchFilter) {
+                    const searchLower = appState.searchFilter.toLowerCase();
+                    return food.name.toLowerCase().includes(searchLower) || food.category.toLowerCase().includes(searchLower);
+                }
+                return true;
+            });
+
+            // Store current list to state for safe array indexing lookup inside events
+            appState.currentFilteredPresets = filteredFoods;
+
+            if (filteredFoods.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-slate-500 italic text-sm w-full">
+                        No food preset matches found. Try creating a custom item!
+                    </div>
+                `;
+                return;
+            }
+
+            filteredFoods.forEach((food, idx) => {
+                const isCustom = food.isCustom;
+                const isLiquidOrWeight = food.unit === 'g' || food.unit === 'ml';
+                const step = isLiquidOrWeight ? 25 : 1;
+                const emoji = food.emoji || "ðŸ¥—";
+
+                const card = document.createElement('div');
+                card.className = "bg-slate-950 border border-slate-800/80 hover:border-slate-700/80 rounded-xl p-4 transition-all duration-200 relative group flex flex-col justify-between";
+                
+                card.innerHTML = `
+                    <div>
+                        <!-- Title & Category Indicator Tags -->
+                        <div class="flex justify-between items-start gap-1.5 mb-2">
+                            <h4 class="font-bold text-sm text-slate-100 group-hover:text-brand-500 transition-colors truncate flex-1 pr-1 flex items-center gap-1.5" title="${food.name}">
+                                <span class="text-base shrink-0">${emoji}</span>
+                                <span class="truncate">${food.name}</span>
+                            </h4>
+                            <span class="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded shrink-0 ${isCustom ? 'bg-purple-950/50 text-purple-300 border border-purple-800/30' : 'bg-slate-800 text-slate-400'}">
+                                ${food.category}
+                            </span>
+                        </div>
+
+                        <!-- Macro Breakdowns -->
+                        <div class="grid grid-cols-4 gap-1 text-[11px] text-slate-400 font-medium mb-3">
+                            <div class="bg-slate-900/60 p-1.5 rounded text-center">
+                                <span class="block text-slate-500 text-[9px] font-bold uppercase">Cal</span>
+                                <span class="text-slate-200" id="displayCal-${idx}">${food.calories}</span>
+                            </div>
+                            <div class="bg-slate-900/60 p-1.5 rounded text-center">
+                                <span class="block text-slate-500 text-[9px] font-bold uppercase text-accent-500">P</span>
+                                <span class="text-accent-400" id="displayProt-${idx}">${food.protein}g</span>
+                            </div>
+                            <div class="bg-slate-900/60 p-1.5 rounded text-center">
+                                <span class="block text-slate-500 text-[9px] font-bold uppercase text-yellow-600">C</span>
+                                <span class="text-yellow-500/90" id="displayCarbs-${idx}">${food.carbs || 0}g</span>
+                            </div>
+                            <div class="bg-slate-900/60 p-1.5 rounded text-center">
+                                <span class="block text-slate-500 text-[9px] font-bold uppercase text-red-500">F</span>
+                                <span class="text-red-400" id="displayFats-${idx}">${food.fat || 0}g</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input Quantities & Add Elements -->
+                    <div class="space-y-2 mt-2 pt-2 border-t border-slate-900">
+                        <div class="flex items-center gap-1.5">
+                            <div class="flex items-center bg-slate-900 border border-slate-800 rounded-lg overflow-hidden flex-1 min-h-[38px]">
+                                <button onclick="adjustPresetQty(${idx}, -${step})" class="px-2.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 text-xs font-bold transition-all h-full min-w-[34px] flex items-center justify-center">-</button>
+                                
+                                <input type="number" 
+                                       id="inputQty-${idx}" 
+                                       value="${food.baseAmount}" 
+                                       oninput="onPresetQtyChange(${idx})"
+                                       class="w-full bg-transparent border-none text-center text-xs text-slate-100 focus:outline-none py-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-bold min-w-0">
+                                
+                                <span class="text-[10px] text-slate-400 pr-2 select-none font-semibold lowercase shrink-0">${food.unit}</span>
+                                
+                                <button onclick="adjustPresetQty(${idx}, ${step})" class="px-2.5 py-1 text-slate-400 hover:text-slate-100 hover:bg-slate-800 text-xs font-bold transition-all h-full min-w-[34px] flex items-center justify-center">+</button>
+                            </div>
+
+                            <select id="selectMeal-${idx}" class="bg-slate-900 border border-slate-800 rounded-lg text-[11px] text-slate-200 py-1.5 px-2 focus:outline-none focus:border-brand-500 max-w-[100px] min-h-[38px]">
+                                <option value="Breakfast">&#127859; Breakfast</option>
+                                <option value="Lunch">&#129367; Lunch</option>
+                                <option value="Dinner">&#129385; Dinner</option>
+                                <option value="Snacks">&#127822; Snacks</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="logPresetFood(${idx})" class="w-full bg-brand-600/10 hover:bg-brand-600 text-brand-400 hover:text-slate-950 border border-brand-500/20 hover:border-brand-500 text-xs font-bold py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-1 min-h-[36px]">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                                Add to diary
+                            </button>
+                            
+                            ${isCustom ? `
+                                <button onclick="deleteCustomPreset(${food.customIdx})" class="p-2 text-red-400 hover:text-red-300 hover:bg-red-950/20 rounded-lg transition-all border border-transparent hover:border-red-500/20 min-h-[36px] flex items-center justify-center shrink-0" title="Delete Preset Permanently">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function logPresetFood(idx) {
+            const food = appState.currentFilteredPresets[idx];
+            if (!food) return;
+
+            const qtyInput = document.getElementById(`inputQty-${idx}`);
+            const mealSelect = document.getElementById(`selectMeal-${idx}`);
+            
+            const customQty = parseFloat(qtyInput.value) || 0;
+            if (customQty <= 0) {
+                showToast("Please enter a valid quantity first!", "warning");
+                return;
+            }
+
+            const mealType = mealSelect.value;
+            const multiplier = customQty / food.baseAmount;
+            const emoji = food.emoji || "ðŸ¥—";
+
+            const dynamicLoggedName = `${emoji} ${food.name} (${customQty}${food.unit})`;
+
+            const loggedItem = {
+                id: Date.now() + Math.random(),
+                name: dynamicLoggedName,
+                calories: Math.round(food.calories * multiplier),
+                protein: parseFloat((food.protein * multiplier).toFixed(1)),
+                carbs: parseFloat(((food.carbs || 0) * multiplier).toFixed(1)),
+                fat: parseFloat(((food.fat || 0) * multiplier).toFixed(1)),
+                multiplier: multiplier,
+                loggedQty: customQty,
+                unit: food.unit,
+                mealType: mealType
+            };
+
+            if (!appState.logs[appState.selectedDate]) {
+                appState.logs[appState.selectedDate] = [];
+            }
+
+            appState.logs[appState.selectedDate].push(loggedItem);
+            saveToLocalStorage();
+            renderAll();
+
+            showToast(`Logged ${food.name} to ${mealType}!`, "success");
+        }
+
+        function renderMealsLog() {
+            const dateStr = appState.selectedDate;
+            const dailyEntries = appState.logs[dateStr] || [];
+
+            const categories = ["Breakfast", "Lunch", "Dinner", "Snacks"];
+            const listPrefixes = {
+                Breakfast: "list-Breakfast",
+                Lunch: "list-Lunch",
+                Dinner: "list-Dinner",
+                Snacks: "list-Snacks"
+            };
+
+            categories.forEach(cat => {
+                const catEntries = dailyEntries.filter(entry => entry.mealType === cat);
+                const listEl = document.getElementById(listPrefixes[cat]);
+                listEl.innerHTML = '';
+
+                let catCal = 0;
+                let catProt = 0;
+
+                if (catEntries.length === 0) {
+                    listEl.innerHTML = `
+                        <li class="text-xs text-slate-600 py-1.5 text-center italic">
+                            No foods logged in this category
+                        </li>
+                    `;
+                } else {
+                    catEntries.forEach(entry => {
+                        catCal += entry.calories;
+                        catProt += entry.protein;
+
+                        const li = document.createElement('li');
+                        li.className = "flex items-center justify-between gap-2 text-xs py-2 px-2.5 bg-slate-900/40 rounded-lg hover:bg-slate-900 border border-slate-800/40 group transition-all";
+                        li.innerHTML = `
+                            <div class="flex-1 min-w-0">
+                                <span class="font-bold text-slate-200 block truncate group-hover:text-brand-400 transition-all">${entry.name}</span>
+                                <span class="text-[10px] text-slate-400 flex flex-wrap gap-x-2 gap-y-0.5">
+                                    <span>Energy: <strong class="text-slate-300">${entry.calories} kcal</strong></span>
+                                    <span>â€¢</span>
+                                    <span>Protein: <strong class="text-accent-400">${entry.protein}g</strong></span>
+                                    ${entry.carbs ? `<span>â€¢</span><span>Carbs: <strong class="text-yellow-600/90">${entry.carbs}g</strong></span>` : ''}
+                                    ${entry.fat ? `<span>â€¢</span><span>Fat: <strong class="text-red-500">${entry.fat}g</strong></span>` : ''}
+                                </span>
+                            </div>
+                            <button onclick="removeLogItem('${entry.id}')" class="p-1 hover:bg-red-950/40 border border-transparent hover:border-red-500/20 text-slate-400 hover:text-red-400 rounded transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 min-h-[30px]" title="Delete Item">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        `;
+                        listEl.appendChild(li);
+                    });
+                }
+
+                document.getElementById(`total-${cat}`).textContent = `${Math.round(catCal)} kcal | ${catProt.toFixed(1)}g P`;
+            });
+        }
+
+        function removeLogItem(itemId) {
+            const dateStr = appState.selectedDate;
+            let currentLogs = appState.logs[dateStr] || [];
+            
+            const item = currentLogs.find(e => String(e.id) === String(itemId));
+            if (item) {
+                appState.logs[dateStr] = currentLogs.filter(e => String(e.id) !== String(itemId));
+                saveToLocalStorage();
+                renderAll();
+                showToast(`Removed "${item.name}"`, "warning");
+            }
+        }
+
+        function filterPresetCategory(catName) {
+            appState.categoryFilter = catName;
+            
+            const tabs = ["all", "lean", "meat", "veg", "snacks", "custom"];
+            tabs.forEach(tab => {
+                const el = document.getElementById(`btn-cat-${tab}`);
+                if (el) {
+                    el.classList.remove('bg-slate-800', 'text-slate-200');
+                    el.classList.add('bg-slate-950', 'text-slate-400');
+                }
+            });
+
+            const mapping = {
+                "all": "btn-cat-all",
+                "Lean Protein": "btn-cat-lean",
+                "Meat & Fish": "btn-cat-meat",
+                "Veg & Grains": "btn-cat-veg",
+                "Drinks & Snacks": "btn-cat-snacks",
+                "Custom": "btn-cat-custom"
+            };
+
+            const activeBtn = document.getElementById(mapping[catName]);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-slate-950', 'text-slate-400');
+                activeBtn.classList.add('bg-slate-800', 'text-slate-200');
+            }
+
+            renderPresetGrid();
+        }
+
+        function filterPresets() {
+            const query = document.getElementById('foodSearchInput').value;
+            appState.searchFilter = query;
+            renderPresetGrid();
+        }
+
+        function openModal(modalId) {
+            const el = document.getElementById(modalId);
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+            
+            setTimeout(() => {
+                el.children[0].classList.remove('scale-95');
+                el.children[0].classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeModal(modalId) {
+            const el = document.getElementById(modalId);
+            el.children[0].classList.remove('scale-100');
+            el.children[0].classList.add('scale-95');
+            
+            setTimeout(() => {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+            }, 100);
+        }
+
+        let activeConfirmAction = null;
+        function openConfirmModal(actionType) {
+            const modal = document.getElementById('confirmDialogModal');
+            const title = document.getElementById('confirmTitle');
+            const message = document.getElementById('confirmMessage');
+            const executeBtn = document.getElementById('confirmExecuteBtn');
+
+            if (actionType === 'clearAll') {
+                title.textContent = 'Clear Daily Log';
+                message.textContent = `Are you sure you want to clear all logged food items for ${appState.selectedDate}? This action cannot be undone.`;
+                activeConfirmAction = () => {
+                    appState.logs[appState.selectedDate] = [];
+                    saveToLocalStorage();
+                    renderAll();
+                    showToast("Cleared active day logbook", "warning");
+                    closeModal('confirmDialogModal');
+                };
+            }
+
+            executeBtn.onclick = () => {
+                if (activeConfirmAction) activeConfirmAction();
+            };
+
+            openModal('confirmDialogModal');
+        }
+
+        function handleCustomFoodSubmit(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('custName').value;
+            const baseAmount = parseFloat(document.getElementById('custBaseAmount').value) || 100;
+            const unit = document.getElementById('custUnit').value || "g";
+            const calories = parseInt(document.getElementById('custCalories').value) || 0;
+            const protein = parseFloat(document.getElementById('custProtein').value) || 0;
+            const carbs = parseFloat(document.getElementById('custCarbs').value) || 0;
+            const fats = parseFloat(document.getElementById('custFats').value) || 0;
+            const category = document.getElementById('custCategory').value;
+            const emoji = document.getElementById('custEmoji').value || "ðŸ¥—";
+
+            const newPreset = {
+                name: name,
+                emoji: emoji,
+                baseAmount: baseAmount,
+                unit: unit,
+                calories: calories,
+                protein: protein,
+                carbs: carbs,
+                fat: fats,
+                category: category
+            };
+
+            appState.customPresets.push(newPreset);
+            saveToLocalStorage();
+            
+            filterPresetCategory('Custom');
+
+            document.getElementById('customPresetForm').reset();
+            closeModal('customFoodModal');
+
+            showToast(`Custom preset "${name}" saved!`, "success");
+        }
+
+        function deleteCustomPreset(index) {
+            const removed = appState.customPresets[index];
+            appState.customPresets.splice(index, 1);
+            saveToLocalStorage();
+            renderPresetGrid();
+            showToast(`Deleted custom preset "${removed.name}"`, "warning");
+        }
+
+        function renderHistoryLogs() {
+            const listContainer = document.getElementById('historySummaryList');
+            listContainer.innerHTML = '';
+
+            const datesList = [];
+            const today = new Date();
+
+            for (let i = 0; i < 7; i++) {
+                const date = new Date();
+                date.setDate(today.getDate() - i);
+                
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                
+                datesList.push(`${yyyy}-${mm}-${dd}`);
+            }
+
+            datesList.forEach(dateStr => {
+                const dailyEntries = appState.logs[dateStr] || [];
+                
+                let totalCals = 0;
+                let totalProt = 0;
+
+                dailyEntries.forEach(entry => {
+                    totalCals += entry.calories;
+                    totalProt += entry.protein;
+                });
+
+                const isCurrent = dateStr === appState.selectedDate;
+                const calPercent = Math.min(Math.round((totalCals / appState.goals.calories) * 100), 999);
+                const protPercent = Math.min(Math.round((totalProt / appState.goals.protein) * 100), 999);
+
+                const dateObj = parseDateString(dateStr);
+                const dayName = dateObj.toLocaleDateString(undefined, { weekday: 'short' });
+                const dayNum = dateObj.getDate();
+
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between p-2 rounded-xl transition-all border ${isCurrent ? 'bg-brand-500/10 border-brand-500/30 text-brand-400' : 'bg-slate-950/40 border-slate-800 text-slate-300 hover:bg-slate-900 cursor-pointer'} min-h-[44px]`;
+                
+                if (!isCurrent) {
+                    item.onclick = () => {
+                        appState.selectedDate = dateStr;
+                        renderAll();
+                        if (window.innerWidth < 1024) {
+                            switchMobileTab('dashboard');
+                        }
+                    };
+                }
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <div class="text-center w-8">
+                            <span class="block text-[9px] uppercase tracking-wider font-bold text-slate-500">${dayName}</span>
+                            <span class="block text-sm font-bold">${dayNum}</span>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-semibold ${isCurrent ? 'text-brand-300' : 'text-slate-200'}">
+                                ${totalCals} kcal <span class="text-slate-500 text-[10px]">(${calPercent}%)</span>
+                            </span>
+                            <span class="block text-[10px] text-slate-400">
+                                Protein: <strong class="${totalProt >= appState.goals.protein ? 'text-emerald-400' : 'text-slate-300'}">${totalProt.toFixed(1)}g</strong> <span class="text-slate-500">(${protPercent}%)</span>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center gap-1">
+                        <span class="w-2.5 h-2.5 rounded-full ${totalCals > 0 && totalCals <= appState.goals.calories ? 'bg-brand-500' : totalCals > appState.goals.calories ? 'bg-amber-500' : 'bg-slate-800'}" title="Calories Status"></span>
+                        <span class="w-2.5 h-2.5 rounded-full ${totalProt >= appState.goals.protein ? 'bg-emerald-500' : 'bg-slate-800'}" title="Protein Target Reached"></span>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        function showToast(message, type = "success") {
+            const container = document.getElementById('toastContainer');
+            
+            const toast = document.createElement('div');
+            toast.className = "flex items-center gap-2 px-4 py-3 rounded-xl border shadow-xl bg-slate-900/90 backdrop-blur text-xs font-semibold text-slate-200 translate-y-2 opacity-0 transition-all duration-300 pointer-events-auto border-slate-800";
+            
+            let iconSvg = '';
+            if (type === 'success') {
+                toast.classList.add('border-l-4', 'border-l-brand-500');
+                iconSvg = `<svg class="w-4 h-4 text-brand-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M4.5 12.75l6 6 9-13.5"/></svg>`;
+            } else if (type === 'warning') {
+                toast.classList.add('border-l-4', 'border-l-amber-500');
+                iconSvg = `<svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>`;
+            }
+
+            toast.innerHTML = `
+                ${iconSvg}
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
